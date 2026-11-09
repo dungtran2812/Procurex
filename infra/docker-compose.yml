@@ -1,0 +1,39 @@
+# Hạ tầng local cho ProcureX.
+# Chạy: docker compose -f infra/docker-compose.yml up -d --wait
+name: procurex
+
+services:
+  postgres:
+    # pg17 thay vì pg18: image Postgres 18 đổi thư mục dữ liệu (/var/lib/postgresql),
+    # mount volume kiểu cũ sẽ lỗi. Giữ pg17 cho đơn giản khi học.
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: procurex
+      POSTGRES_PASSWORD: procurex
+      POSTGRES_DB: procurex
+    ports:
+      - '5432:5432'
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U procurex -d procurex']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pg_data:
+  redis_data:

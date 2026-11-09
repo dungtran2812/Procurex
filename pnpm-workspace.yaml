@@ -1,0 +1,15 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# pnpm 10 chặn build script của dependency theo mặc định (chống supply-chain attack).
+# allowBuilds (pnpm >= 10.26) thay cho onlyBuiltDependencies (bị bỏ ở pnpm 11).
+allowBuilds:
+  argon2: true
+  prisma: true
+  '@prisma/client': true
+  '@prisma/engines': true
+  '@nestjs/core': true
+  # Không cần build: @parcel/watcher có binary dựng sẵn; @scarf/scarf chỉ là telemetry của swagger-ui.
+  '@parcel/watcher': false
+  '@scarf/scarf': false

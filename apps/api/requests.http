@@ -1,0 +1,106 @@
+### ProcureX – kịch bản thử API (VS Code extension "REST Client")
+### Bấm "Send Request" phía trên từng request. Chạy theo thứ tự từ trên xuống.
+
+@baseUrl = http://localhost:3001/api/v1
+
+### 0. Health
+GET {{baseUrl}}/health
+
+### 1. Đăng ký doanh nghiệp (tạo company + ADMIN)
+# @name register
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "companyName": "Công ty TNHH Cơ Khí ACME",
+  "taxCode": "0312345678",
+  "adminEmail": "admin@acme.vn",
+  "adminPassword": "Secret123!",
+  "adminFullName": "Tran Thi B"
+}
+
+### 2. Đăng nhập (cần Bài 3)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ADMIN@acme.vn",
+  "password": "Secret123!"
+}
+
+### 3. Xem thông tin của tôi (cần Bài 2)
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{login.response.body.tokens.accessToken}}
+
+### 4. ADMIN tạo user BUYER (cần Bài 2 + Bài 5)
+POST {{baseUrl}}/users
+Authorization: Bearer {{login.response.body.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "email": "buyer@acme.vn",
+  "password": "Secret123!",
+  "fullName": "Le Van C",
+  "role": "BUYER"
+}
+
+### 5. Thử tạo user vào công ty KHÁC bằng cách nhét companyId → phải 400 (forbidNonWhitelisted)
+POST {{baseUrl}}/users
+Authorization: Bearer {{login.response.body.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "email": "hacker@acme.vn",
+  "password": "Secret123!",
+  "fullName": "Hacker",
+  "role": "ADMIN",
+  "companyId": "00000000-0000-0000-0000-000000000000"
+}
+
+### 6. Refresh (cần Bài 4) – token mới
+# @name refresh
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{login.response.body.tokens.refreshToken}}"
+}
+
+### 7. Dùng LẠI refresh token cũ (reuse) → 401 và mọi phiên của user bị thu hồi
+POST {{baseUrl}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{login.response.body.tokens.refreshToken}}"
+}
+
+### 8. Đăng xuất
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{refresh.response.body.tokens.accessToken}}
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refresh.response.body.tokens.refreshToken}}"
+}
+
+### 9. Brute-force: gửi request này 6 lần liên tiếp → lần thứ 6 nhận 429 Too Many Requests
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@acme.vn",
+  "password": "wrong-password"
+}
+
+### 10. Mã số thuế sai định dạng → 400
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "companyName": "Công ty X",
+  "taxCode": "12345",
+  "adminEmail": "x@x.vn",
+  "adminPassword": "Secret123!",
+  "adminFullName": "X"
+}

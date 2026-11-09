@@ -1,0 +1,62 @@
+// Prisma 6 (prisma-client-js). Tên model/field theo camelCase trong code,
+// còn tên bảng/cột trong DB theo snake_case nhờ @map / @@map.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  APPROVER
+  BUYER
+
+  @@map("user_role")
+}
+
+enum CompanyTier {
+  STANDARD
+  SILVER
+  GOLD
+  PLATINUM
+
+  @@map("company_tier")
+}
+
+model Company {
+  id          String      @id @default(uuid()) @db.Uuid
+  name        String
+  taxCode     String      @unique @map("tax_code")
+  tier        CompanyTier @default(STANDARD)
+  // Tiền: luôn dùng Decimal, KHÔNG dùng float (0.1 + 0.2 != 0.3).
+  creditLimit Decimal     @default(0) @map("credit_limit") @db.Decimal(14, 2)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  users User[]
+
+  @@map("companies")
+}
+
+model User {
+  id            String   @id @default(uuid()) @db.Uuid
+  companyId     String   @map("company_id") @db.Uuid
+  email         String   @unique
+  passwordHash  String   @map("password_hash")
+  fullName      String   @map("full_name")
+  role          Role     @default(BUYER)
+  // Hạn mức phê duyệt (VND). Dùng ở Giai đoạn 3 (approval nhiều cấp).
+  approvalLimit Decimal  @default(0) @map("approval_limit") @db.Decimal(14, 2)
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
+  @@map("users")
+}
