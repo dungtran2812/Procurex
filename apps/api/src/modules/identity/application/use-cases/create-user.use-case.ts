@@ -41,6 +41,27 @@ export class CreateUserUseCase {
   ) {}
 
   async execute(actor: AuthUser, input: CreateUserInput): Promise<PublicUser> {
-    throw new Error('TODO Bài 5: CreateUserUseCase.execute');
+    // 1. Chuẩn hóa email + kiểm tra trùng.
+    const email = normalizeEmail(input.email);
+    if (await this.repo.emailExists(email)) {
+      throw new DomainError('EMAIL_TAKEN', 'Email đã được sử dụng');
+    }
+
+    // 2. Hash mật khẩu.
+    const passwordHash = await this.hasher.hash(input.password);
+
+    // 3. Liệt kê từng field (không spread input) → companyId lạ trong input bị bỏ qua.
+    //    companyId LUÔN lấy từ actor đã xác thực.
+    const user = await this.repo.createUser({
+      companyId: actor.companyId,
+      email,
+      passwordHash,
+      fullName: input.fullName,
+      role: input.role,
+      approvalLimit: input.approvalLimit ?? 0,
+    });
+
+    // 4. Không bao giờ trả passwordHash ra ngoài.
+    return user.toPublic();
   }
 }

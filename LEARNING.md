@@ -31,13 +31,18 @@ Monorepo pnpm + Turborepo · husky + commitlint + lint-staged · docker-compose 
 | 1   | Dependency Inversion (DI)                | `src/modules/identity/identity.module.ts`                                                       | `pnpm dev` khởi động không lỗi DI | ✅         |
 | 2   | Guards: AuthN (JWT) + AuthZ (RBAC)       | `src/common/auth/guards.ts`                                                                     | `pnpm test guards`                | ✅         |
 | 3   | Login an toàn                            | `src/modules/identity/application/use-cases/login.use-case.ts`                                  | `pnpm test login`                 | ✅         |
-| 4a  | Refresh token rotation + reuse detection | `src/modules/identity/infrastructure/jwt-token.service.ts` (`consumeRefreshToken`, `revokeAll`) | `pnpm test jwt-token`             | ⬜         |
-| 4b  | Refresh use case                         | `src/modules/identity/application/use-cases/refresh-token.use-case.ts`                          | `pnpm test refresh`               | ⬜         |
-| 5   | Multi-tenant isolation                   | `src/modules/identity/application/use-cases/create-user.use-case.ts`                            | `pnpm test create-user`           | ⬜         |
+| 4a  | Refresh token rotation + reuse detection | `src/modules/identity/infrastructure/jwt-token.service.ts` (`consumeRefreshToken`, `revokeAll`) | `pnpm test jwt-token`             | ✅         |
+| 4b  | Refresh use case                         | `src/modules/identity/application/use-cases/refresh-token.use-case.ts`                          | `pnpm test refresh`               | ✅         |
+| 5   | Multi-tenant isolation                   | `src/modules/identity/application/use-cases/create-user.use-case.ts`                            | `pnpm test create-user`           | ✅         |
 
 Worked example để đọc trước: `register-company.use-case.ts` + `register-company.use-case.spec.ts` (đang xanh).
 
 Sau khi xong cả 5 bài: chạy `pnpm dev` rồi thử toàn bộ kịch bản trong `apps/api/requests.http`.
+
+### E2E `requests.http` ✅ (2026-11-10)
+
+42/42 unit test xanh, typecheck sạch. Cả 10 kịch bản đúng kỳ vọng: email login không phân biệt hoa thường · inject `companyId` → 400 · reuse refresh token → 401 và token mới cũng bị thu hồi · logout 204 · brute-force → 429 · taxCode sai → 400.
+Ghi chú: login bị throttle chung 5 lần/phút/IP, nên lần đăng nhập thành công ở bước 2 cũng tính → 429 xuất hiện ở lần sai thứ 5. Body 429 chưa đi qua exception filter (thiếu `error`/`path`) – có thể chuẩn hoá sau.
 
 ### Trạng thái test lúc bàn giao (2026-11-08)
 

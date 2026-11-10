@@ -28,6 +28,20 @@ export class RefreshTokenUseCase {
   ) {}
 
   async execute(refreshToken: string): Promise<AuthResult> {
-    throw new Error('TODO Bài 4b: RefreshTokenUseCase.execute');
+    // 1. Tiêu thụ token cũ (sai / đã dùng → tự ném INVALID_REFRESH_TOKEN).
+    const { userId } = await this.tokens.consumeRefreshToken(refreshToken);
+
+    // 2. Tải lại user từ DB: role/trạng thái có thể đã đổi kể từ lúc cấp token.
+    const user = await this.repo.findById(userId);
+
+    // 3. User bị xóa hoặc bị khóa → cắt mọi phiên còn lại.
+    if (!user || !user.isActive) {
+      await this.tokens.revokeAll(userId);
+      throw new DomainError('INVALID_REFRESH_TOKEN', 'Tài khoản không còn hiệu lực');
+    }
+
+    // 4. Rotation: cấp cặp token mới.
+    const tokens = await this.tokens.issue(user);
+    return { user: user.toPublic(), tokens };
   }
 }

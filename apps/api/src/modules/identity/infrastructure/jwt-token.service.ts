@@ -85,7 +85,29 @@ export class JwtTokenService extends TokenService {
    * ❓ Khi phát hiện reuse, vì sao thu hồi TẤT CẢ phiên chứ không chỉ báo lỗi?
    */
   async consumeRefreshToken(refreshToken: string): Promise<{ userId: string }> {
-    throw new Error('TODO Bài 4a: JwtTokenService.consumeRefreshToken');
+    let payload: RefreshPayload;
+    try {
+      payload = await this.jwt.verifyAsync<RefreshPayload>(refreshToken, {
+        secret: this.env.JWT_REFRESH_SECRET,
+      });
+    } catch {
+      throw new DomainError('INVALID_REFRESH_TOKEN', 'Refresh token không hợp lệ hoặc đã hết hạn');
+    }
+    if (payload.typ !== 'refresh') {
+      throw new DomainError('INVALID_REFRESH_TOKEN', 'Sai loại token');
+    }
+
+    const { sub, jti } = payload;
+    // DEL là atomic: trong 2 request đồng thời, chỉ đúng 1 request nhận được 1.
+    const deleted = await this.redis.del(sessionKey(sub, jti));
+    if (deleted === 0) {
+      // Chữ ký đúng nhưng phiên đã bị tiêu thụ → reuse → nghi bị đánh cắp.
+      await this.revokeAll(sub);
+      throw new DomainError('INVALID_REFRESH_TOKEN', 'Refresh token đã được sử dụng');
+    }
+
+    await this.redis.srem(userSessionsKey(sub), jti);
+    return { userId: sub };
   }
 
   /**
@@ -97,6 +119,9 @@ export class JwtTokenService extends TokenService {
    *     (gợi ý: multi() rồi .del(...) từng key, hoặc del(...keys) một lần — chú ý mảng rỗng).
    */
   async revokeAll(userId: string): Promise<void> {
-    throw new Error('TODO Bài 4a: JwtTokenService.revokeAll');
+    const jtis = await this.redis.smembers(userSessionsKey(userId));
+    // Luôn có ít nhất userSessionsKey nên mảng keys không bao giờ rỗng.
+    const keys = [...jtis.map((jti) => sessionKey(userId, jti)), userSessionsKey(userId)];
+    await this.redis.del(...keys);
   }
 }
