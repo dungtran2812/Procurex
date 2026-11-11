@@ -49,8 +49,14 @@ apps/api/src
     │   ├── application/       use cases + ports (PasswordHasher, TokenService)
     │   ├── infrastructure/    adapters: Prisma, argon2, JWT+Redis
     │   └── presentation/      controllers + DTO
-    └── catalog/           danh mục ltree, faceted search jsonb, bảng giá, cache Redis
-        └── (cùng 4 tầng như identity)
+    ├── catalog/           danh mục ltree, faceted search jsonb, bảng giá, cache Redis
+    ├── procurement/       Purchase Request, duyệt nhiều cấp cấu hình được, SLA
+    └── sourcing/          nhà cung cấp, RFQ, báo giá, PO, đồng bộ ERP
+        (mỗi module cùng 4 tầng: domain / application / infrastructure / presentation)
+
+apps/api/src/infrastructure
+├── persistence/       UnitOfWork (AsyncLocalStorage), audit log, outbox, notifier
+└── queue/             BullMQ, event bus (idempotent consumer), outbox relay
 ```
 
 Quy tắc phụ thuộc: `presentation → application → domain` và `infrastructure → application/domain`.
@@ -78,3 +84,11 @@ _(Cập nhật cuối mỗi giai đoạn.)_
 - Cây danh mục bằng ltree: con cháu `<@`, tổ tiên `@>`, một câu SQL thay cho `WITH RECURSIVE`.
 - Faceted search: `specs @> jsonb` (GIN) để lọc, `jsonb_each_text` + `GROUP BY` để đếm facet; ghép điều kiện bằng `Prisma.sql`/`Prisma.join` để vẫn là tham số.
 - Cache-aside với version key: invalidate = `INCR`, không cần xoá từng key; Redis lỗi thì fail-open.
+
+### Giai đoạn 2–3
+
+- Chứng từ là state machine thuần; quy tắc duyệt là dữ liệu; tách biệt nhiệm vụ khi duyệt.
+- Ghi đồng thời an toàn bằng optimistic locking; nhiều bảng trong 1 transaction bằng Unit of Work.
+- Transactional outbox + relay `SKIP LOCKED` + consumer idempotent = at-least-once mà không trùng tác dụng.
+- Hệ thống ngoài (ERP) không rollback được → retry/backoff, dead-letter, idempotency phía ERP.
+- Người ngoài hệ thống (NCC) xác thực bằng token entropy cao, chỉ lưu hash.

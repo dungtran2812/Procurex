@@ -15,6 +15,17 @@ const EnvSchema = z
     JWT_ACCESS_TTL: z.coerce.number().int().positive().default(900),
     JWT_REFRESH_TTL: z.coerce.number().int().positive().default(604800),
     CORS_ORIGIN: z.string().default('http://localhost:3000'),
+    // Giai đoạn 3: job nền (BullMQ). Tắt được khi chạy nhiều instance chỉ phục vụ HTTP.
+    WORKERS_ENABLED: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((v) => v === 'true'),
+    OUTBOX_POLL_MS: z.coerce.number().int().positive().default(1000),
+    APPROVAL_SLA_HOURS: z.coerce.number().positive().default(24),
+    // Link NCC mở để gửi báo giá (frontend), token nằm trong path.
+    PUBLIC_APP_URL: z.string().default('http://localhost:3000'),
+    // ERP giả lập: tỉ lệ lỗi (0..1) để thấy retry/backoff hoạt động.
+    ERP_MOCK_FAILURE_RATE: z.coerce.number().min(0).max(1).default(0),
   })
   .refine((e) => e.JWT_ACCESS_SECRET !== e.JWT_REFRESH_SECRET, {
     message: 'JWT_ACCESS_SECRET và JWT_REFRESH_SECRET phải khác nhau',

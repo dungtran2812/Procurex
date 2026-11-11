@@ -19,7 +19,16 @@ export type DomainErrorCode =
   | 'CONCURRENT_MODIFICATION'
   | 'EMPTY_PR'
   | 'COMMENT_REQUIRED'
-  | 'INVALID_APPROVAL_RULES';
+  | 'INVALID_APPROVAL_RULES'
+  | 'SUPPLIER_NOT_FOUND'
+  | 'SUPPLIER_EXISTS'
+  | 'RFQ_NOT_FOUND'
+  | 'RFQ_EXISTS'
+  | 'INVALID_RFQ'
+  | 'RFQ_CLOSED'
+  | 'INVALID_QUOTE'
+  | 'INVALID_INVITE_TOKEN'
+  | 'PO_NOT_FOUND';
 
 export class DomainError extends Error {
   constructor(

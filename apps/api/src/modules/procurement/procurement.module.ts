@@ -7,6 +7,7 @@ import {
   PricingPort,
   PurchaseRequestRepository,
 } from './application/ports';
+import { ProcurementHandlers } from './application/procurement.handlers';
 import {
   ApprovalRuleService,
   PurchaseRequestService,
@@ -27,6 +28,7 @@ import {
   providers: [
     PurchaseRequestService,
     ApprovalRuleService,
+    ProcurementHandlers,
     { provide: PurchaseRequestRepository, useClass: PrismaPurchaseRequestRepository },
     { provide: ApprovalRuleRepository, useClass: PrismaApprovalRuleRepository },
     { provide: PricingPort, useClass: CatalogPricingAdapter },

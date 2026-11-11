@@ -8,10 +8,12 @@ import { EnvModule } from './config/env.module';
 import { HealthController } from './health/health.controller';
 import { PrismaModule } from './infrastructure/prisma/prisma.module';
 import { PersistenceModule } from './infrastructure/persistence/persistence.module';
+import { QueueModule } from './infrastructure/queue/queue.module';
 import { RedisModule } from './infrastructure/redis/redis.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { ProcurementModule } from './modules/procurement/procurement.module';
+import { SourcingModule } from './modules/sourcing/sourcing.module';
 
 @Module({
   imports: [
@@ -19,6 +21,7 @@ import { ProcurementModule } from './modules/procurement/procurement.module';
     PrismaModule,
     RedisModule,
     PersistenceModule,
+    QueueModule,
     // Secret truyền theo từng lần sign/verify (access vs refresh khác nhau) nên ở đây để trống.
     JwtModule.register({ global: true }),
     // Mặc định 100 req/phút/IP; route login tự siết xuống 5. (In-memory; GĐ5 chuyển sang Redis storage.)
@@ -26,6 +29,7 @@ import { ProcurementModule } from './modules/procurement/procurement.module';
     IdentityModule,
     CatalogModule,
     ProcurementModule,
+    SourcingModule,
   ],
   controllers: [HealthController],
   providers: [

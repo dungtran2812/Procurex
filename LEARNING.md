@@ -71,6 +71,49 @@ Bài 8–9 do mentor viết đáp án trực tiếp (người học yêu cầu "
 
 80/80 test xanh (gồm integration trên Postgres thật), typecheck sạch, E2E các endpoint catalog trong `requests.http` đúng kỳ vọng.
 
+## Giai đoạn 2 – Procurement: PR + duyệt nhiều cấp ✅ (mentor viết, 2026-11-11)
+
+| Concept                                                                            | Ở đâu                                                                         |
+| ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| State machine là hàm domain thuần (`submit`, `decide`, `cancel`, `allowedActions`) | `src/modules/procurement/domain/purchase-request.ts`                          |
+| Quy tắc duyệt cấu hình được (`approval_rules`), sinh bước duyệt lúc submit         | `buildSteps` (file trên) · `PUT /approval-rules`                              |
+| Tách biệt nhiệm vụ: không tự duyệt, 1 người không duyệt 2 cấp, phải đủ hạn mức     | `approverProblem` (file trên)                                                 |
+| Optimistic locking (`version`)                                                     | `procurement/infrastructure/prisma-purchase-request.repository.ts` → `save()` |
+| Unit of Work bằng AsyncLocalStorage                                                | `src/infrastructure/persistence/prisma-unit-of-work.ts`                       |
+| Snapshot giá vào dòng PR                                                           | bảng `purchase_request_lines` · `CatalogPricingAdapter`                       |
+| Anti-corruption layer (procurement gọi catalog/identity qua port riêng)            | `procurement/application/ports` · `procurement/infrastructure/adapters.ts`    |
+| Audit trail append-only + transactional outbox                                     | `src/common/persistence/ports.ts`                                             |
+| Idempotency-Key cho POST                                                           | `src/common/http/idempotency.interceptor.ts`                                  |
+
+API: `POST/GET /purchase-requests`, `GET /purchase-requests/:id[/history]`, `POST /purchase-requests/:id/{submit,approve,reject,cancel}`, `GET/PUT /approval-rules`.
+
+## Giai đoạn 3 – Sourcing + workflow bất đồng bộ ✅ (mentor viết, 2026-11-11)
+
+| Concept                                                                                                            | Ở đâu                                               |
+| ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------- |
+| RFQ → báo giá → chọn thầu → PO (xếp hạng giá/lead time, bắt buộc lý do khi không chọn rẻ nhất)                     | `src/modules/sourcing/domain/sourcing.ts`           |
+| Cổng NCC không đăng nhập: token 256-bit trong link, DB chỉ lưu SHA-256                                             | `SupplierPortalController` · `issueInviteToken`     |
+| BullMQ: queue dùng chung, retry + backoff mũ, bật/tắt worker bằng `WORKERS_ENABLED`                                | `src/infrastructure/queue/bullmq-job-queue.ts`      |
+| Outbox relay (`FOR UPDATE SKIP LOCKED`, jobId = event id)                                                          | `src/infrastructure/queue/outbox-relay.ts`          |
+| Idempotent consumer (`processed_events`)                                                                           | `src/infrastructure/queue/event-bus.ts`             |
+| Timer & SLA: đóng RFQ đúng hạn; nhắc duyệt sau `APPROVAL_SLA_HOURS`, escalate lên ADMIN                            | `sourcing.handlers.ts` · `procurement.handlers.ts`  |
+| Đồng bộ ERP: retry; lần cuối vẫn lỗi → `FAILED` + báo ADMIN, có nút đồng bộ lại; ERP mock idempotent theo poNumber | `syncPoToErp` · `MockErpAdapter`                    |
+| Thông báo có `dedupeKey` (job chạy lại không gửi trùng)                                                            | `src/infrastructure/persistence/prisma-notifier.ts` |
+
+API: `/suppliers`, `/rfqs[/:id/{close,cancel,award}]`, `/purchase-orders[/:id[/erp-sync]]`, `/supplier-portal/rfq/:token[/quote]`.
+Biến môi trường mới: `WORKERS_ENABLED`, `OUTBOX_POLL_MS`, `APPROVAL_SLA_HOURS`, `PUBLIC_APP_URL`, `ERP_MOCK_FAILURE_RATE` (xem `.env.example`).
+
+### Trạng thái lúc xong GĐ 2–3
+
+130/130 test xanh (unit + integration trên Postgres thật), typecheck và build sạch. E2E trên API thật: PR duyệt 2 cấp, idempotency trả lại response cũ, RFQ 2 NCC, chọn thầu có lý do, PO → ERP `SYNCED` qua worker, outbox không còn event tồn.
+
+### Còn lại (chưa làm)
+
+- Giai đoạn 4: tách procurement/sourcing thành service riêng + Kafka (ADR 0001); Saga cho PO ↔ hạn mức tín dụng.
+- Postgres RLS cho các bảng tenant (hiện lọc `companyId` ở repository).
+- Frontend Next.js; socket.io realtime (thông báo hiện chỉ ghi vào bảng `notifications`).
+- Throttler lưu trên Redis khi chạy nhiều instance; OpenTelemetry; keyset pagination.
+
 ## Ghi chú kỹ thuật / bẫy đã gặp
 
 - Prisma ghim **6.19.x** (`prisma-client-js`); Prisma 7 đổi cấu hình.
@@ -79,6 +122,9 @@ Bài 8–9 do mentor viết đáp án trực tiếp (người học yêu cầu "
 - Test Bài 7–8 chạy trên Postgres thật. DB tắt → lỗi "Can't reach database server" → `docker compose -f infra/docker-compose.yml up -d`.
 - Query string luôn là chuỗi còn jsonb phân biệt `"12"` và `12` → filter số thử cả hai dạng (`OR`), vẫn dùng được GIN.
 - `$queryRaw` bỏ qua Prisma client → `@default(uuid())` không chạy, phải `gen_random_uuid()`; Decimal/bigint trả về không phải `number` → ép `::int`/`::float8`.
+- BullMQ ghim **5.81.x** (6.7.4 phát hành đúng ngày cài). BullMQ cần kết nối Redis riêng với `maxRetriesPerRequest: null`; jobId không được chứa `:`.
+- Docker Desktop tắt → container dừng theo. Compose đã có `restart: unless-stopped`; nếu Docker không chạy thì mở Docker Desktop trước.
+- Test dùng chung DB dev: `event-infra.spec.ts` chạy relay thật nên sẽ đánh dấu published cả các event đang chờ của dữ liệu dev.
 - Postgres image pg17 (pg18 đổi đường dẫn volume).
 - File phải UTF-8 **không BOM**; `.gitattributes` ép LF (quan trọng cho `.husky/*`).
 - `.env` của API nằm ở `apps/api/.env` (gitignored), mẫu: `.env.example`.

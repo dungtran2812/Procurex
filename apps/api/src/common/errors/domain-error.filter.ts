@@ -20,6 +20,16 @@ const STATUS_BY_CODE: Record<DomainErrorCode, number> = {
   EMPTY_PR: HttpStatus.UNPROCESSABLE_ENTITY,
   COMMENT_REQUIRED: HttpStatus.UNPROCESSABLE_ENTITY,
   INVALID_APPROVAL_RULES: HttpStatus.UNPROCESSABLE_ENTITY,
+  SUPPLIER_NOT_FOUND: HttpStatus.NOT_FOUND,
+  SUPPLIER_EXISTS: HttpStatus.CONFLICT,
+  RFQ_NOT_FOUND: HttpStatus.NOT_FOUND,
+  RFQ_EXISTS: HttpStatus.CONFLICT,
+  INVALID_RFQ: HttpStatus.UNPROCESSABLE_ENTITY,
+  RFQ_CLOSED: HttpStatus.CONFLICT,
+  INVALID_QUOTE: HttpStatus.UNPROCESSABLE_ENTITY,
+  // Token sai/không tồn tại → 404 (không tiết lộ RFQ có tồn tại hay không).
+  INVALID_INVITE_TOKEN: HttpStatus.NOT_FOUND,
+  PO_NOT_FOUND: HttpStatus.NOT_FOUND,
 };
 
 @Catch(DomainError)

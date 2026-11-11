@@ -131,3 +131,108 @@ Authorization: Bearer {{login.response.body.tokens.accessToken}}
 ### 16. spec sai định dạng → 400
 GET {{baseUrl}}/products?spec=khongcohaicham
 Authorization: Bearer {{login.response.body.tokens.accessToken}}
+
+### ===== Giai đoạn 2 – Purchase Request + duyệt nhiều cấp =====
+### Chuẩn bị: request 4 đã tạo buyer@acme.vn. Tạo thêm 1 người duyệt có hạn mức:
+POST {{baseUrl}}/users
+Authorization: Bearer {{login.response.body.tokens.accessToken}}
+Content-Type: application/json
+
+{ "email": "approver@acme.vn", "password": "Secret123!", "fullName": "Pham Duyet", "role": "APPROVER", "approvalLimit": 100000000 }
+
+### 17. ADMIN cấu hình quy tắc duyệt: ≥ 5 triệu cần thêm cấp 2 (người duyệt hạn mức ≥ 500 triệu)
+PUT {{baseUrl}}/approval-rules
+Authorization: Bearer {{login.response.body.tokens.accessToken}}
+Content-Type: application/json
+
+{ "rules": [
+  { "level": 1, "minTotal": 0, "minApproverLimit": 0 },
+  { "level": 2, "minTotal": 5000000, "minApproverLimit": 500000000 }
+] }
+
+### 18. BUYER đăng nhập
+# @name buyerLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "buyer@acme.vn", "password": "Secret123!" }
+
+### 19. Tạo PR (giá được snapshot). Gửi lại cùng Idempotency-Key → trả lại đúng PR cũ
+# @name pr
+POST {{baseUrl}}/purchase-requests
+Authorization: Bearer {{buyerLogin.response.body.tokens.accessToken}}
+Content-Type: application/json
+Idempotency-Key: pr-demo-0001
+
+{ "title": "Vật tư bảo trì dây chuyền 2", "lines": [ { "productId": "{{search.response.body.items.0.id}}", "quantity": 10 } ] }
+
+### 20. Gửi duyệt → sinh các bước theo quy tắc, phát event pr.pending_approval
+POST {{baseUrl}}/purchase-requests/{{pr.response.body.id}}/submit
+Authorization: Bearer {{buyerLogin.response.body.tokens.accessToken}}
+
+### 21. Người duyệt đăng nhập
+# @name approverLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{ "email": "approver@acme.vn", "password": "Secret123!" }
+
+### 22. Duyệt (xem allowedActions trong response)
+POST {{baseUrl}}/purchase-requests/{{pr.response.body.id}}/approve
+Authorization: Bearer {{approverLogin.response.body.tokens.accessToken}}
+Content-Type: application/json
+
+{ "comment": "OK" }
+
+### 23. Lịch sử (audit trail)
+GET {{baseUrl}}/purchase-requests/{{pr.response.body.id}}/history
+Authorization: Bearer {{buyerLogin.response.body.tokens.accessToken}}
+
+### ===== Giai đoạn 3 – RFQ → báo giá → PO → ERP (PR phải APPROVED) =====
+
+### 24. Thêm nhà cung cấp
+# @name supplier
+POST {{baseUrl}}/suppliers
+Authorization: Bearer {{buyerLogin.response.body.tokens.accessToken}}
+Content-Type: application/json
+
+{ "name": "Công ty TNHH Thiết Bị Minh Phát", "email": "sales@minhphat.vn" }
+
+### 25. Mở RFQ (deadline ≥ 1 giờ nữa). Worker gửi link mời → lấy token trong bảng notifications
+# @name rfq
+POST {{baseUrl}}/rfqs
+Authorization: Bearer {{buyerLogin.response.body.tokens.accessToken}}
+Content-Type: application/json
+
+{ "prId": "{{pr.response.body.id}}", "supplierIds": ["{{supplier.response.body.id}}"], "deadline": "2030-01-01T00:00:00.000Z" }
+
+### 26. NCC xem lời mời (không cần đăng nhập). Thay <token> bằng token trong notifications.body
+@token = <token>
+GET {{baseUrl}}/supplier-portal/rfq/{{token}}
+
+### 27. NCC gửi báo giá (gửi lại để cập nhật khi RFQ còn mở)
+PUT {{baseUrl}}/supplier-portal/rfq/{{token}}/quote
+Content-Type: application/json
+
+{ "leadTimeDays": 5, "validUntil": "2030-06-01T00:00:00.000Z", "lines": [ { "lineNo": 1, "unitPrice": 95000 } ] }
+
+### 28. Đóng RFQ
+POST {{baseUrl}}/rfqs/{{rfq.response.body.id}}/close
+Authorization: Bearer {{buyerLogin.response.body.tokens.accessToken}}
+
+### 28b. Xem xếp hạng báo giá
+# @name rfqDetail
+GET {{baseUrl}}/rfqs/{{rfq.response.body.id}}
+Authorization: Bearer {{buyerLogin.response.body.tokens.accessToken}}
+
+### 29. Chọn thầu → tạo PO, phát po.issued → worker đồng bộ ERP (có retry)
+# @name po
+POST {{baseUrl}}/rfqs/{{rfq.response.body.id}}/award
+Authorization: Bearer {{buyerLogin.response.body.tokens.accessToken}}
+Content-Type: application/json
+
+{ "quoteId": "{{rfqDetail.response.body.quotes.0.quoteId}}" }
+
+### 30. Xem PO (erpSyncStatus: PENDING → SYNCED sau vài giây)
+GET {{baseUrl}}/purchase-orders/{{po.response.body.id}}
+Authorization: Bearer {{buyerLogin.response.body.tokens.accessToken}}
