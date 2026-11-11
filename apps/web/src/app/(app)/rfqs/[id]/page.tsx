@@ -26,7 +26,7 @@ export default function RfqPage({ params }: { params: Promise<{ id: string }> })
   const { id } = use(params);
   const qc = useQueryClient();
   const router = useRouter();
-  const [chosen, setChosen] = useState<string>();
+  const [picked, setPicked] = useState<string>();
   const [reason, setReason] = useState('');
   const [idemKey, resetKey] = useIdempotencyKey();
 
@@ -67,6 +67,9 @@ export default function RfqPage({ params }: { params: Promise<{ id: string }> })
   const canAward =
     r.status === 'CLOSED' || (r.status === 'OPEN' && now >= new Date(r.deadline).getTime());
   const cheapestId = r.quotes[0]?.quoteId; // API đã xếp hạng
+  // Mặc định chọn sẵn báo giá rẻ nhất; người dùng bấm dòng khác để đổi.
+  const chosen = picked ?? (canAward ? cheapestId : undefined);
+  const chosenQuote = r.quotes.find((q) => q.quoteId === chosen);
   const needsReason = !!chosen && chosen !== cheapestId;
 
   return (
@@ -130,7 +133,11 @@ export default function RfqPage({ params }: { params: Promise<{ id: string }> })
                 </thead>
                 <tbody>
                   {r.quotes.map((q, i) => (
-                    <tr key={q.quoteId} className={chosen === q.quoteId ? 'bg-brand/5' : ''}>
+                    <tr
+                      key={q.quoteId}
+                      onClick={canAward ? () => setPicked(q.quoteId) : undefined}
+                      className={`${chosen === q.quoteId ? 'bg-brand/5' : ''} ${canAward ? 'cursor-pointer hover:bg-surface-2' : ''}`}
+                    >
                       {canAward && (
                         <td>
                           <input
@@ -138,7 +145,7 @@ export default function RfqPage({ params }: { params: Promise<{ id: string }> })
                             name="quote"
                             aria-label={`Chọn ${q.supplierName}`}
                             checked={chosen === q.quoteId}
-                            onChange={() => setChosen(q.quoteId)}
+                            onChange={() => setPicked(q.quoteId)}
                           />
                         </td>
                       )}
@@ -186,6 +193,30 @@ export default function RfqPage({ params }: { params: Promise<{ id: string }> })
             <Card title="Chọn nhà cung cấp">
               <div className="space-y-3">
                 {award.error && <ErrorBox message={errorMessage(award.error)} />}
+                {r.quotes.length === 0 ? (
+                  <p className="text-sm text-muted">Chưa có báo giá nào để chọn.</p>
+                ) : chosenQuote ? (
+                  <dl className="space-y-1 text-sm">
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-muted">Nhà cung cấp</dt>
+                      <dd className="font-medium">{chosenQuote.supplierName}</dd>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-muted">Tổng</dt>
+                      <dd className="num">{vnd(chosenQuote.totalAmount)}</dd>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-muted">Giao hàng</dt>
+                      <dd className="num">{chosenQuote.leadTimeDays} ngày</dd>
+                    </div>
+                    <p className="pt-1 text-xs text-muted">
+                      {chosen === cheapestId ? 'Giá thấp nhất. ' : ''}Bấm một dòng trong bảng Báo
+                      giá để chọn nhà cung cấp khác.
+                    </p>
+                  </dl>
+                ) : (
+                  <p className="text-sm text-muted">Bấm một dòng trong bảng Báo giá để chọn.</p>
+                )}
                 {needsReason && (
                   <Field
                     label="Lý do không chọn giá thấp nhất"
