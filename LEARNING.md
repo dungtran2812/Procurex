@@ -107,11 +107,33 @@ Biến môi trường mới: `WORKERS_ENABLED`, `OUTBOX_POLL_MS`, `APPROVAL_SLA_
 
 130/130 test xanh (unit + integration trên Postgres thật), typecheck và build sạch. E2E trên API thật: PR duyệt 2 cấp, idempotency trả lại response cũ, RFQ 2 NCC, chọn thầu có lý do, PO → ERP `SYNCED` qua worker, outbox không còn event tồn.
 
+## Frontend – Next.js (`apps/web`) ✅ (mentor viết, 2026-11-11)
+
+Next.js 16.4 App Router · React 19 · TanStack Query 5 · Tailwind 4. Chạy: `pnpm dev` ở gốc (API :3001 + web :3000).
+
+| Concept                                                                            | Ở đâu                                                                  |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| BFF: token chỉ nằm trong cookie httpOnly, trình duyệt không thấy token lẫn API_URL | `src/lib/server/session.ts` · `src/app/api/auth/[action]/route.ts`     |
+| Proxy gắn token + refresh khi 401, gửi lại 1 lần                                   | `src/app/api/proxy/[...path]/route.ts`                                 |
+| Refresh SINGLE-FLIGHT (tránh kích hoạt reuse detection của Bài 4a)                 | `src/lib/server/refresh.ts` (+ test)                                   |
+| Kiểm tra phiên ở server trước khi render (không nháy trang rỗng)                   | `src/app/(app)/layout.tsx`                                             |
+| Server state = TanStack Query; giỏ hàng = client state (localStorage)              | `src/components/providers.tsx` · `src/components/cart.tsx`             |
+| URL là nguồn sự thật cho bộ lọc catalog, debounce ô tìm, giữ dữ liệu cũ khi tải    | `src/lib/search-params.ts` (+ test) · `src/app/(app)/catalog/page.tsx` |
+| Nút thao tác theo `allowedActions` của server, không tự đoán luật                  | `src/app/(app)/purchase-requests/[id]/page.tsx`                        |
+| Idempotency-Key sinh 1 lần mỗi form                                                | `useIdempotencyKey` trong `src/lib/client/hooks.ts`                    |
+| Map lỗi theo `code`, không theo message                                            | `src/lib/client/api.ts`                                                |
+| Polling có điều kiện (RFQ đang mở, PO đang đồng bộ ERP)                            | `refetchInterval` ở trang RFQ/PO                                       |
+| Cổng NCC công khai (ngoài nhóm route cần đăng nhập)                                | `src/app/rfq/[token]/page.tsx`                                         |
+
+Kiểm chứng: 12 test vitest, typecheck + `next build` sạch; E2E bằng curl (5 request song song cùng refresh token đều 200, API không ghi nhận reuse, phiên vẫn còn hiệu lực) và bằng trình duyệt (đăng nhập → lọc facet → báo giá theo bậc → giỏ → tạo PR → gửi duyệt).
+
 ### Còn lại (chưa làm)
 
 - Giai đoạn 4: tách procurement/sourcing thành service riêng + Kafka (ADR 0001); Saga cho PO ↔ hạn mức tín dụng.
 - Postgres RLS cho các bảng tenant (hiện lọc `companyId` ở repository).
-- Frontend Next.js; socket.io realtime (thông báo hiện chỉ ghi vào bảng `notifications`).
+- socket.io realtime (thông báo hiện chỉ ghi vào bảng `notifications`; web dùng polling).
+- Sinh type FE từ OpenAPI (hiện `apps/web/src/lib/types.ts` viết tay); test component/E2E Playwright cho web.
+- Danh sách người dùng của công ty (API chưa có endpoint → UI hiện id rút gọn thay tên).
 - Throttler lưu trên Redis khi chạy nhiều instance; OpenTelemetry; keyset pagination.
 
 ## Ghi chú kỹ thuật / bẫy đã gặp
@@ -125,6 +147,8 @@ Biến môi trường mới: `WORKERS_ENABLED`, `OUTBOX_POLL_MS`, `APPROVAL_SLA_
 - BullMQ ghim **5.81.x** (6.7.4 phát hành đúng ngày cài). BullMQ cần kết nối Redis riêng với `maxRetriesPerRequest: null`; jobId không được chứa `:`.
 - Docker Desktop tắt → container dừng theo. Compose đã có `restart: unless-stopped`; nếu Docker không chạy thì mở Docker Desktop trước.
 - Test dùng chung DB dev: `event-infra.spec.ts` chạy relay thật nên sẽ đánh dấu published cả các event đang chờ của dữ liệu dev.
+- Next.js 16: `params`/`cookies()` là Promise (`use(params)` ở client, `await` ở server); `useSearchParams` cần bọc `<Suspense>` để build được.
+- Dev server cũ còn giữ cổng 3001 → bản mới báo `EADDRINUSE` nhưng health vẫn 200 (đang gọi nhầm bản cũ). Kiểm tra `netstat -ano | findstr :3001`.
 - Postgres image pg17 (pg18 đổi đường dẫn volume).
 - File phải UTF-8 **không BOM**; `.gitattributes` ép LF (quan trọng cho `.husky/*`).
 - `.env` của API nằm ở `apps/api/.env` (gitignored), mẫu: `.env.example`.

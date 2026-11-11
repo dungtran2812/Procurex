@@ -14,4 +14,6 @@ export abstract class CategoryRepository {
   abstract findSubtree(slug: string): Promise<Category[]>;
   /** Breadcrumb: từ gốc xuống tới chính `slug`, sắp theo depth. Không tồn tại → []. */
   abstract findAncestors(slug: string): Promise<Category[]>;
+  /** Toàn bộ cây, sắp theo path (cha trước con) — dùng cho menu/bộ lọc. */
+  abstract findAll(): Promise<Category[]>;
 }

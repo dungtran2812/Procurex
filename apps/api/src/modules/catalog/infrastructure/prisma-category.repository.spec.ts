@@ -78,6 +78,18 @@ describe('PrismaCategoryRepository (Bài 7, Postgres thật)', () => {
     expect(await repo.findAncestors(s('khong-co'))).toEqual([]);
   });
 
+  it('findAll: cha luôn đứng trước con', async () => {
+    const all = (await repo.findAll()).filter((c) => c.slug.startsWith(p));
+    expect(all.map((c) => c.slug)).toEqual([
+      s('bao-ho'),
+      s('dung-cu'),
+      s('cam-tay'),
+      s('co-le'),
+      s('tua-vit'),
+      s('dien'),
+    ]);
+  });
+
   it('slug độc hại không gây SQL injection', async () => {
     await expect(repo.findSubtree(`x' OR '1'='1`)).resolves.toEqual([]);
   });

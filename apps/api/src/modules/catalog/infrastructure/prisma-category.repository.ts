@@ -89,4 +89,8 @@ export class PrismaCategoryRepository extends CategoryRepository {
       WHERE path @> (SELECT path FROM categories WHERE slug = ${slug})
       ORDER BY nlevel(path)`;
   }
+
+  async findAll(): Promise<Category[]> {
+    return this.prisma.$queryRaw<CategoryRow[]>`SELECT ${COLUMNS} FROM categories ORDER BY path`;
+  }
 }

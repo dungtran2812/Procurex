@@ -5,6 +5,7 @@ import { CurrentUser } from '../../../common/auth/decorators';
 import {
   GetCategoryTreeUseCase,
   GetProductUseCase,
+  ListCategoriesUseCase,
   QuoteProductUseCase,
   SearchProductsUseCase,
 } from '../application/use-cases/catalog-use-cases';
@@ -22,10 +23,16 @@ import { QuoteQueryDto, SearchProductsQueryDto } from './dto/catalog.dto';
 export class CatalogController {
   constructor(
     private readonly categoryTree: GetCategoryTreeUseCase,
+    private readonly listCategories: ListCategoriesUseCase,
     private readonly searchProducts: SearchProductsUseCase,
     private readonly getProduct: GetProductUseCase,
     private readonly quoteProduct: QuoteProductUseCase,
   ) {}
+
+  @Get('categories')
+  categories() {
+    return this.listCategories.execute();
+  }
 
   @Get('categories/:slug')
   category(@Param('slug') slug: string) {

@@ -87,6 +87,18 @@ export class QuoteProductUseCase {
 }
 
 @Injectable()
+export class ListCategoriesUseCase {
+  constructor(
+    private readonly categories: CategoryRepository,
+    private readonly cache: CatalogCache,
+  ) {}
+
+  execute(): Promise<Category[]> {
+    return this.cache.wrap('categories:all', CATALOG_TTL.category, () => this.categories.findAll());
+  }
+}
+
+@Injectable()
 export class GetCategoryTreeUseCase {
   constructor(
     private readonly categories: CategoryRepository,

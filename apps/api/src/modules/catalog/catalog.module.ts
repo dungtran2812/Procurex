@@ -3,6 +3,7 @@ import { CatalogCache } from './application/ports';
 import {
   GetCategoryTreeUseCase,
   GetProductUseCase,
+  ListCategoriesUseCase,
   QuoteProductUseCase,
   SearchProductsUseCase,
 } from './application/use-cases/catalog-use-cases';
@@ -17,6 +18,7 @@ import { CatalogController } from './presentation/catalog.controller';
   controllers: [CatalogController],
   providers: [
     GetCategoryTreeUseCase,
+    ListCategoriesUseCase,
     SearchProductsUseCase,
     GetProductUseCase,
     QuoteProductUseCase,

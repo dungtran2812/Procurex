@@ -8,7 +8,8 @@ Bắt đầu bằng **modular monolith** (`apps/api`), Giai đoạn 4 mới tác
 ## Stack
 
 NestJS 11 · Prisma 6 · PostgreSQL 17 (pgvector) · Redis 7 · pnpm workspaces + Turborepo · Jest ·
-(sắp tới) Next.js, RabbitMQ, BullMQ, socket.io, Kubernetes.
+BullMQ · Next.js 16 (App Router) + TanStack Query + Tailwind 4 ·
+(sắp tới) socket.io, Kafka, Kubernetes.
 
 ## Workflow automation
 
@@ -34,6 +35,8 @@ pnpm exec prisma migrate dev          # tạo bảng
 pnpm db:seed                          # catalog MRO ~5.000 SKU
 pnpm test                             # unit test
 pnpm dev                              # http://localhost:3001/api/v1 , Swagger: /docs
+cd ../web && copy .env.example .env.local
+cd ../.. && pnpm dev                  # chạy cả API + web: http://localhost:3000
 ```
 
 ## Cấu trúc
@@ -53,6 +56,13 @@ apps/api/src
     ├── procurement/       Purchase Request, duyệt nhiều cấp cấu hình được, SLA
     └── sourcing/          nhà cung cấp, RFQ, báo giá, PO, đồng bộ ERP
         (mỗi module cùng 4 tầng: domain / application / infrastructure / presentation)
+
+apps/web/src            Next.js App Router
+├── app/(auth)/        đăng nhập, đăng ký
+├── app/(app)/         catalog, giỏ, PR, RFQ, PO, NCC, cài đặt (cần đăng nhập)
+├── app/rfq/[token]/   cổng báo giá cho nhà cung cấp (công khai)
+├── app/api/           BFF: auth (cookie httpOnly) + proxy tới API (refresh single-flight)
+└── lib/               client API, URL state, định dạng tiền/ngày
 
 apps/api/src/infrastructure
 ├── persistence/       UnitOfWork (AsyncLocalStorage), audit log, outbox, notifier
@@ -92,3 +102,9 @@ _(Cập nhật cuối mỗi giai đoạn.)_
 - Transactional outbox + relay `SKIP LOCKED` + consumer idempotent = at-least-once mà không trùng tác dụng.
 - Hệ thống ngoài (ERP) không rollback được → retry/backoff, dead-letter, idempotency phía ERP.
 - Người ngoài hệ thống (NCC) xác thực bằng token entropy cao, chỉ lưu hash.
+
+### Frontend
+
+- BFF giữ token trong cookie httpOnly; refresh single-flight để không đá người dùng ra khi nhiều request cùng hết hạn token.
+- Phân biệt server state (TanStack Query), URL state (bộ lọc), client state (giỏ hàng).
+- UI đi theo `allowedActions` của server; lỗi xử lý theo mã nghiệp vụ.
