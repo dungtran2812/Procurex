@@ -8,7 +8,9 @@ export type DomainErrorCode =
   | 'INVALID_CREDENTIALS'
   | 'INVALID_REFRESH_TOKEN'
   | 'USER_INACTIVE'
-  | 'USER_NOT_FOUND';
+  | 'USER_NOT_FOUND'
+  | 'BELOW_MIN_ORDER_QTY'
+  | 'PRICE_NOT_AVAILABLE';
 
 export class DomainError extends Error {
   constructor(

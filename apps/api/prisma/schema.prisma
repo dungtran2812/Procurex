@@ -60,3 +60,73 @@ model User {
   @@index([companyId])
   @@map("users")
 }
+
+// ============================================================
+//  Giai đoạn 1b – Catalog
+// ============================================================
+
+// Cây danh mục dùng ltree: path = 'dung_cu.dung_cu_cam_tay.co_le'.
+// Prisma chưa hỗ trợ ltree nên khai báo Unsupported → chỉ đọc/ghi qua $queryRaw.
+model Category {
+  id        String                 @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String                 @unique
+  path      Unsupported("ltree")
+  createdAt DateTime               @default(now()) @map("created_at")
+
+  products Product[]
+
+  @@index([path], type: Gist)
+  @@map("categories")
+}
+
+model Product {
+  id          String   @id @default(uuid()) @db.Uuid
+  sku         String   @unique
+  name        String
+  categoryId  String   @map("category_id") @db.Uuid
+  unit        String // "cái", "hộp", "mét"...
+  // Thông số kỹ thuật linh hoạt theo từng loại: { "size_mm": 12, "material": "CrV" }
+  specs       Json     @default("{}")
+  minOrderQty Int      @default(1) @map("min_order_qty")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  category      Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  priceTiers    PriceTier[]
+  companyPrices CompanyPrice[]
+
+  @@index([categoryId])
+  @@index([specs], type: Gin)
+  @@map("products")
+}
+
+// Giá niêm yết theo bậc số lượng: mua >= minQty thì đơn giá = unitPrice.
+// VND không có phần lẻ → Decimal(14,0).
+model PriceTier {
+  id        String  @id @default(uuid()) @db.Uuid
+  productId String  @map("product_id") @db.Uuid
+  minQty    Int     @map("min_qty")
+  unitPrice Decimal @map("unit_price") @db.Decimal(14, 0)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, minQty])
+  @@map("price_tiers")
+}
+
+// Giá hợp đồng riêng cho 1 công ty, có hiệu lực theo thời gian (validTo = null → vô thời hạn).
+model CompanyPrice {
+  id        String    @id @default(uuid()) @db.Uuid
+  companyId String    @map("company_id") @db.Uuid
+  productId String    @map("product_id") @db.Uuid
+  unitPrice Decimal   @map("unit_price") @db.Decimal(14, 0)
+  validFrom DateTime  @map("valid_from")
+  validTo   DateTime? @map("valid_to")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, productId])
+  @@map("company_prices")
+}

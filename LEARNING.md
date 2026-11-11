@@ -49,9 +49,18 @@ Ghi chú: login bị throttle chung 5 lần/phút/IP, nên lần đăng nhập t
 - Xanh: `register-company` (4), `jwt-token › issue()` (2)
 - Đỏ (chờ bài tập): `guards` (12), `login` (7), `jwt-token › consume/revokeAll` (7), `refresh` (5), `create-user` (5)
 
-## Giai đoạn 1b – Catalog (chưa bắt đầu)
+## Giai đoạn 1b – Catalog 🟡
 
-ltree · specs jsonb + GIN · bảng giá theo bậc số lượng & theo công ty · faceted search · cache Redis + invalidation · seed ~5.000 SKU MRO.
+Mentor đã dựng: migration `init_catalog` (extension `ltree`, bảng `categories` + index GiST, `products.specs` jsonb + index GIN, `price_tiers`, `company_prices`), mã lỗi `BELOW_MIN_ORDER_QTY` / `PRICE_NOT_AVAILABLE` → 422.
+
+| Bài | Concept                                    | File cần sửa                            | Lệnh kiểm tra       | Trạng thái |
+| --- | ------------------------------------------ | --------------------------------------- | ------------------- | ---------- |
+| 6   | Domain thuần: giá theo bậc + giá hợp đồng  | `src/modules/catalog/domain/pricing.ts` | `pnpm test pricing` | ✅         |
+| 7   | Cây danh mục với ltree (`<@`, `$queryRaw`) | (sẽ giao)                               |                     | ⬜         |
+| 8   | Faceted search trên specs jsonb + GIN      | (sẽ giao)                               |                     | ⬜         |
+| 9   | Cache Redis + invalidation                 | (sẽ giao)                               |                     | ⬜         |
+
+Còn lại: seed ~5.000 SKU MRO.
 
 ## Ghi chú kỹ thuật / bẫy đã gặp
 
