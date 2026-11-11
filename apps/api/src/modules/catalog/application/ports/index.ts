@@ -1,2 +1,2 @@
 export * from './catalog-cache';
-export * from './clock';
+export * from '../../../../common/time/clock';

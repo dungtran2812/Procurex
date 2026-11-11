@@ -7,6 +7,7 @@ services:
     # pg17 thay vì pg18: image Postgres 18 đổi thư mục dữ liệu (/var/lib/postgresql),
     # mount volume kiểu cũ sẽ lỗi. Giữ pg17 cho đơn giản khi học.
     image: pgvector/pgvector:pg17
+    restart: unless-stopped
     environment:
       POSTGRES_USER: procurex
       POSTGRES_PASSWORD: procurex
@@ -23,6 +24,7 @@ services:
 
   redis:
     image: redis:7.4-alpine
+    restart: unless-stopped
     command: ['redis-server', '--appendonly', 'yes']
     ports:
       - '6379:6379'

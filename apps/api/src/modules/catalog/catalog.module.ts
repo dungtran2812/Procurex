@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { CatalogCache, Clock, SystemClock } from './application/ports';
+import { CatalogCache } from './application/ports';
 import {
   GetCategoryTreeUseCase,
   GetProductUseCase,
@@ -23,7 +23,8 @@ import { CatalogController } from './presentation/catalog.controller';
     { provide: CategoryRepository, useClass: PrismaCategoryRepository },
     { provide: ProductRepository, useClass: PrismaProductRepository },
     { provide: CatalogCache, useClass: RedisCatalogCache },
-    { provide: Clock, useClass: SystemClock },
   ],
+  // API công khai của module cho module khác (procurement) — chỉ use case, không lộ repository.
+  exports: [QuoteProductUseCase, GetProductUseCase],
 })
 export class CatalogModule {}

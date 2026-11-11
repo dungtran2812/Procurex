@@ -130,3 +130,128 @@ model CompanyPrice {
   @@index([companyId, productId])
   @@map("company_prices")
 }
+
+// ============================================================
+//  Giai đoạn 2 – Procurement: Purchase Request + duyệt nhiều cấp
+// ============================================================
+
+enum PrStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  CANCELLED
+
+  @@map("pr_status")
+}
+
+enum ApprovalDecision {
+  PENDING
+  APPROVED
+  REJECTED
+
+  @@map("approval_decision")
+}
+
+model PurchaseRequest {
+  id          String    @id @default(uuid()) @db.Uuid
+  companyId   String    @map("company_id") @db.Uuid
+  requesterId String    @map("requester_id") @db.Uuid
+  title       String
+  note        String?
+  status      PrStatus  @default(DRAFT)
+  totalAmount Decimal   @default(0) @map("total_amount") @db.Decimal(16, 0)
+  // Optimistic locking: mỗi lần ghi phải khớp version đang đọc, rồi +1.
+  version     Int       @default(0)
+  submittedAt DateTime? @map("submitted_at")
+  decidedAt   DateTime? @map("decided_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  lines PurchaseRequestLine[]
+  steps ApprovalStep[]
+
+  @@index([companyId, status, createdAt])
+  @@index([companyId, requesterId])
+  @@map("purchase_requests")
+}
+
+// Dòng hàng: SNAPSHOT giá + thông tin sản phẩm tại thời điểm tạo, không trỏ sang bảng giá.
+model PurchaseRequestLine {
+  id          String  @id @default(uuid()) @db.Uuid
+  prId        String  @map("pr_id") @db.Uuid
+  lineNo      Int     @map("line_no")
+  productId   String  @map("product_id") @db.Uuid
+  sku         String
+  productName String  @map("product_name")
+  unit        String
+  quantity    Int
+  unitPrice   Decimal @map("unit_price") @db.Decimal(14, 0)
+  priceSource String  @map("price_source") // TIER | CONTRACT
+  lineTotal   Decimal @map("line_total") @db.Decimal(16, 0)
+
+  pr PurchaseRequest @relation(fields: [prId], references: [id], onDelete: Cascade)
+
+  @@unique([prId, lineNo])
+  @@map("purchase_request_lines")
+}
+
+// Quy tắc duyệt CẤU HÌNH ĐƯỢC theo công ty: PR có tổng >= minTotal thì cần duyệt cấp `level`.
+// Người duyệt cấp đó phải có approvalLimit >= minApproverLimit.
+model ApprovalRule {
+  id               String  @id @default(uuid()) @db.Uuid
+  companyId        String  @map("company_id") @db.Uuid
+  level            Int
+  minTotal         Decimal @map("min_total") @db.Decimal(16, 0)
+  minApproverLimit Decimal @map("min_approver_limit") @db.Decimal(16, 0)
+
+  @@unique([companyId, level])
+  @@map("approval_rules")
+}
+
+// Các bước duyệt sinh ra lúc submit (snapshot quy tắc lúc đó).
+model ApprovalStep {
+  id               String           @id @default(uuid()) @db.Uuid
+  prId             String           @map("pr_id") @db.Uuid
+  level            Int
+  minApproverLimit Decimal          @map("min_approver_limit") @db.Decimal(16, 0)
+  decision         ApprovalDecision @default(PENDING)
+  decidedBy        String?          @map("decided_by") @db.Uuid
+  comment          String?
+  decidedAt        DateTime?        @map("decided_at")
+
+  pr PurchaseRequest @relation(fields: [prId], references: [id], onDelete: Cascade)
+
+  @@unique([prId, level])
+  @@map("approval_steps")
+}
+
+// Audit trail: CHỈ GHI THÊM (append-only).
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  companyId  String   @map("company_id") @db.Uuid
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id") @db.Uuid
+  action     String
+  fromStatus String?  @map("from_status")
+  toStatus   String?  @map("to_status")
+  actorId    String   @map("actor_id") @db.Uuid
+  data       Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId, createdAt])
+  @@map("audit_logs")
+}
+
+// Transactional outbox: event ghi CÙNG transaction với thay đổi nghiệp vụ, relay đẩy đi sau.
+model OutboxEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  type        String
+  payload     Json
+  attempts    Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  publishedAt DateTime? @map("published_at")
+
+  @@index([publishedAt, createdAt])
+  @@map("outbox_events")
+}

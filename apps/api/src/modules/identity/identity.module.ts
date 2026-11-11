@@ -45,5 +45,7 @@ import { JwtTokenService } from './infrastructure/jwt-token.service';
     { provide: PasswordHasher, useClass: Argon2PasswordHasher },
     { provide: TokenService, useClass: JwtTokenService },
   ],
+  // Procurement cần tra approvalLimit của người duyệt (không có trong JWT).
+  exports: [GetMeUseCase],
 })
 export class IdentityModule {}

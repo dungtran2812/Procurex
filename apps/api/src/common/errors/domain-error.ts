@@ -12,7 +12,14 @@ export type DomainErrorCode =
   | 'BELOW_MIN_ORDER_QTY'
   | 'PRICE_NOT_AVAILABLE'
   | 'PRODUCT_NOT_FOUND'
-  | 'CATEGORY_NOT_FOUND';
+  | 'CATEGORY_NOT_FOUND'
+  | 'PR_NOT_FOUND'
+  | 'INVALID_TRANSITION'
+  | 'FORBIDDEN_ACTION'
+  | 'CONCURRENT_MODIFICATION'
+  | 'EMPTY_PR'
+  | 'COMMENT_REQUIRED'
+  | 'INVALID_APPROVAL_RULES';
 
 export class DomainError extends Error {
   constructor(

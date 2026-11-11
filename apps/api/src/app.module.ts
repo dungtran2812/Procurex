@@ -7,21 +7,25 @@ import { DomainErrorFilter } from './common/errors/domain-error.filter';
 import { EnvModule } from './config/env.module';
 import { HealthController } from './health/health.controller';
 import { PrismaModule } from './infrastructure/prisma/prisma.module';
+import { PersistenceModule } from './infrastructure/persistence/persistence.module';
 import { RedisModule } from './infrastructure/redis/redis.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { IdentityModule } from './modules/identity/identity.module';
+import { ProcurementModule } from './modules/procurement/procurement.module';
 
 @Module({
   imports: [
     EnvModule,
     PrismaModule,
     RedisModule,
+    PersistenceModule,
     // Secret truyền theo từng lần sign/verify (access vs refresh khác nhau) nên ở đây để trống.
     JwtModule.register({ global: true }),
     // Mặc định 100 req/phút/IP; route login tự siết xuống 5. (In-memory; GĐ5 chuyển sang Redis storage.)
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 100 }]),
     IdentityModule,
     CatalogModule,
+    ProcurementModule,
   ],
   controllers: [HealthController],
   providers: [

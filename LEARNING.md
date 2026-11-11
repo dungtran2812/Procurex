@@ -65,7 +65,7 @@ Bài 8–9 do mentor viết đáp án trực tiếp (người học yêu cầu "
 - Use case: `application/use-cases/catalog-use-cases.ts` (GetProduct, SearchProducts, QuoteProduct, GetCategoryTree) + spec.
 - HTTP (chỉ đọc, mọi role đã đăng nhập): `GET /categories/:slug` · `GET /products?category=&q=&spec=key:value&page=&pageSize=` · `GET /products/:id` · `GET /products/:id/quote?qty=`.
 - Ghi catalog chỉ qua seed, không mở cho admin công ty (tránh một tenant sửa dữ liệu mọi tenant thấy).
-- Seed: `pnpm db:seed` (trong `apps/api`) → 17 danh mục (11 lá), 5.000 SKU, 15.000 bậc giá, 40 hợp đồng/công ty; idempotent; cuối cùng `INCR catalog:version`.
+- Seed: `pnpm db:seed` (trong `apps/api`) → 19 danh mục (3 gốc, 5 nhóm, 11 lá), 5.000 SKU, 15.000 bậc giá, 40 hợp đồng/công ty; idempotent; cuối cùng `INCR catalog:version`.
 
 ### Trạng thái lúc xong 1b (2026-11-11)
 
