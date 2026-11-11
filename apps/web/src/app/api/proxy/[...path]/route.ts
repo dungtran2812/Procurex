@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { API_URL, clearTokens, readTokens, refreshTokens, writeTokens } from '@/lib/server/session';
+import {
+  API_URL,
+  clearTokens,
+  clientIp,
+  readTokens,
+  refreshTokens,
+  writeTokens,
+} from '@/lib/server/session';
 
 /**
  * BFF proxy: trình duyệt gọi /api/proxy/<đường dẫn API>, server Next gắn access token từ cookie
@@ -24,6 +31,8 @@ async function handle(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     const v = req.headers.get(h);
     if (v) headers[h] = v;
   }
+  const ip = clientIp(req.headers);
+  if (ip) headers['x-forwarded-for'] = ip;
 
   let { accessToken, refreshToken } = await readTokens();
   const send = (token?: string) =>

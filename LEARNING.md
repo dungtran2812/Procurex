@@ -149,6 +149,7 @@ Kiểm chứng: 12 test vitest, typecheck + `next build` sạch; E2E bằng curl
 - Test dùng chung DB dev: `event-infra.spec.ts` chạy relay thật nên sẽ đánh dấu published cả các event đang chờ của dữ liệu dev.
 - Next.js 16: `params`/`cookies()` là Promise (`use(params)` ở client, `await` ở server); `useSearchParams` cần bọc `<Suspense>` để build được.
 - Dev server cũ còn giữ cổng 3001 → bản mới báo `EADDRINUSE` nhưng health vẫn 200 (đang gọi nhầm bản cũ). Kiểm tra `netstat -ano | findstr :3001`.
+- Sau BFF, API thấy mọi request đến từ IP của server Next → throttler gộp MỌI người dùng vào 1 quota (login 5 lần/phút cho cả hệ thống → 429). Sửa: BFF chuyển IP client qua `X-Forwarded-For` (lấy hop cuối), API `trust proxy` chỉ với proxy khai báo (`TRUST_PROXY`, mặc định loopback). Production: reverse proxy trước Next phải GHI ĐÈ header này.
 - Postgres image pg17 (pg18 đổi đường dẫn volume).
 - File phải UTF-8 **không BOM**; `.gitattributes` ép LF (quan trọng cho `.husky/*`).
 - `.env` của API nằm ở `apps/api/.env` (gitignored), mẫu: `.env.example`.

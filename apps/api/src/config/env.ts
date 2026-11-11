@@ -15,6 +15,9 @@ const EnvSchema = z
     JWT_ACCESS_TTL: z.coerce.number().int().positive().default(900),
     JWT_REFRESH_TTL: z.coerce.number().int().positive().default(604800),
     CORS_ORIGIN: z.string().default('http://localhost:3000'),
+    // Proxy nào được tin header X-Forwarded-For (cú pháp 'trust proxy' của Express).
+    // Mặc định chỉ tin BFF Next chạy cùng máy; production: IP/subnet của BFF hoặc load balancer.
+    TRUST_PROXY: z.string().default('loopback'),
     // Giai đoạn 3: job nền (BullMQ). Tắt được khi chạy nhiều instance chỉ phục vụ HTTP.
     WORKERS_ENABLED: z
       .enum(['true', 'false'])

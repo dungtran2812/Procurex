@@ -41,6 +41,18 @@ export async function clearTokens(): Promise<void> {
   jar.delete(REFRESH_COOKIE);
 }
 
+/**
+ * IP của trình duyệt, để API rate-limit theo TỪNG người dùng chứ không theo IP của BFF.
+ * Next tự gán x-forwarded-for = IP socket nếu request chưa có header này. Lấy phần tử CUỐI
+ * (hop gần nhất) để client không tự chèn IP giả ở đầu chuỗi.
+ * Production: đặt Next sau reverse proxy GHI ĐÈ header (nginx: X-Forwarded-For $remote_addr),
+ * nếu không client có thể tự gửi header để đổi IP.
+ */
+export function clientIp(headers: Headers): string | undefined {
+  const chain = headers.get('x-forwarded-for');
+  return chain?.split(',').at(-1)?.trim() || undefined;
+}
+
 export class RefreshFailed extends Error {}
 
 /** Một refresher dùng chung cho cả process (xem refresh.ts). */

@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { existsSync } from 'node:fs';
 import { AppModule } from './app.module';
@@ -10,9 +11,13 @@ async function bootstrap(): Promise<void> {
   // Chạy TRƯỚC NestFactory.create vì EnvModule validate process.env lúc khởi tạo provider.
   if (existsSync('.env')) process.loadEnvFile('.env');
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const env = app.get<Env>(ENV);
 
+  // Sau BFF (Next.js), mọi request tới từ IP của BFF → nếu không tin X-Forwarded-For thì
+  // throttler đếm MỌI người dùng chung 1 IP (5 lần login/phút cho cả hệ thống).
+  // Chỉ tin header khi request đến từ proxy đã khai báo, để client không tự giả IP.
+  app.set('trust proxy', env.TRUST_PROXY);
   app.setGlobalPrefix('api/v1');
   app.enableCors({ origin: env.CORS_ORIGIN.split(','), credentials: true });
   app.useGlobalPipes(

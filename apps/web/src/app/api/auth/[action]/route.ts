@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { API_URL, clearTokens, readTokens, writeTokens } from '@/lib/server/session';
+import { API_URL, clearTokens, clientIp, readTokens, writeTokens } from '@/lib/server/session';
 import type { TokenPair } from '@/lib/server/refresh';
 
 /**
@@ -11,13 +11,19 @@ type Ctx = { params: Promise<{ action: string }> };
 
 export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const { action } = await ctx.params;
+  const ip = clientIp(req.headers);
+  const fwd: Record<string, string> = ip ? { 'x-forwarded-for': ip } : {};
 
   if (action === 'logout') {
     const { accessToken, refreshToken } = await readTokens();
     if (accessToken && refreshToken) {
       await fetch(`${API_URL}/auth/logout`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${accessToken}` },
+        headers: {
+          ...fwd,
+          'content-type': 'application/json',
+          authorization: `Bearer ${accessToken}`,
+        },
         body: JSON.stringify({ refreshToken }),
         cache: 'no-store',
       }).catch(() => undefined);
@@ -32,7 +38,7 @@ export async function POST(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
 
   const res = await fetch(`${API_URL}/auth/${action}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { ...fwd, 'content-type': 'application/json' },
     body: await req.text(),
     cache: 'no-store',
   });
