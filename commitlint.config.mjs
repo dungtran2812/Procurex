@@ -7,7 +7,19 @@ export default {
     'scope-enum': [
       1,
       'always',
-      ['repo', 'infra', 'api', 'identity', 'catalog', 'procurement', 'web', 'deps', 'docs', 'ci'],
+      [
+        'repo',
+        'infra',
+        'api',
+        'identity',
+        'catalog',
+        'procurement',
+        'sourcing',
+        'web',
+        'deps',
+        'docs',
+        'ci',
+      ],
     ],
   },
 };
