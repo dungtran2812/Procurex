@@ -8,6 +8,7 @@ import { EnvModule } from './config/env.module';
 import { HealthController } from './health/health.controller';
 import { PrismaModule } from './infrastructure/prisma/prisma.module';
 import { RedisModule } from './infrastructure/redis/redis.module';
+import { CatalogModule } from './modules/catalog/catalog.module';
 import { IdentityModule } from './modules/identity/identity.module';
 
 @Module({
@@ -20,6 +21,7 @@ import { IdentityModule } from './modules/identity/identity.module';
     // Mặc định 100 req/phút/IP; route login tự siết xuống 5. (In-memory; GĐ5 chuyển sang Redis storage.)
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 100 }]),
     IdentityModule,
+    CatalogModule,
   ],
   controllers: [HealthController],
   providers: [

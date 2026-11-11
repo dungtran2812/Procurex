@@ -31,6 +31,7 @@ pnpm infra:up                         # Postgres + Redis (Docker)
 cd apps/api
 copy .env.example .env                # lần đầu; đổi 2 JWT secret
 pnpm exec prisma migrate dev          # tạo bảng
+pnpm db:seed                          # catalog MRO ~5.000 SKU
 pnpm test                             # unit test
 pnpm dev                              # http://localhost:3001/api/v1 , Swagger: /docs
 ```
@@ -42,11 +43,14 @@ apps/api/src
 ├── config/            env.ts (zod, fail-fast)
 ├── common/            auth (decorators, guards), errors (DomainError + filter)
 ├── infrastructure/    prisma, redis (hạ tầng dùng chung)
-└── modules/identity/
-    ├── domain/            entity + port repository (thuần TS)
-    ├── application/       use cases + ports (PasswordHasher, TokenService)
-    ├── infrastructure/    adapters: Prisma, argon2, JWT+Redis
-    └── presentation/      controllers + DTO
+└── modules/
+    ├── identity/          auth, RBAC, multi-tenant
+    │   ├── domain/            entity + port repository (thuần TS)
+    │   ├── application/       use cases + ports (PasswordHasher, TokenService)
+    │   ├── infrastructure/    adapters: Prisma, argon2, JWT+Redis
+    │   └── presentation/      controllers + DTO
+    └── catalog/           danh mục ltree, faceted search jsonb, bảng giá, cache Redis
+        └── (cùng 4 tầng như identity)
 ```
 
 Quy tắc phụ thuộc: `presentation → application → domain` và `infrastructure → application/domain`.
@@ -63,4 +67,14 @@ _(Cập nhật cuối mỗi giai đoạn.)_
 
 ### Giai đoạn 1a
 
-- _(điền sau khi hoàn thành 5 bài)_
+- Dependency Inversion bằng abstract class làm DI token; use case chỉ biết port, test bằng fake.
+- Guard toàn cục Throttler → JwtAuth → Roles; `@Public()` / `@Roles()` khai báo trên route.
+- Login chống dò email (cùng thông báo, vẫn verify hash giả); refresh token rotation + phát hiện reuse → thu hồi mọi phiên.
+- Multi-tenant: companyId lấy từ JWT, không bao giờ từ body; `forbidNonWhitelisted` là lớp phòng thủ thứ hai.
+
+### Giai đoạn 1b
+
+- Logic giá là hàm domain thuần (`quotePrice`), thời gian truyền vào → test xác định; tiền VND là số nguyên.
+- Cây danh mục bằng ltree: con cháu `<@`, tổ tiên `@>`, một câu SQL thay cho `WITH RECURSIVE`.
+- Faceted search: `specs @> jsonb` (GIN) để lọc, `jsonb_each_text` + `GROUP BY` để đếm facet; ghép điều kiện bằng `Prisma.sql`/`Prisma.join` để vẫn là tham số.
+- Cache-aside với version key: invalidate = `INCR`, không cần xoá từng key; Redis lỗi thì fail-open.

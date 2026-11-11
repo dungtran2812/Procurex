@@ -49,24 +49,36 @@ Ghi chú: login bị throttle chung 5 lần/phút/IP, nên lần đăng nhập t
 - Xanh: `register-company` (4), `jwt-token › issue()` (2)
 - Đỏ (chờ bài tập): `guards` (12), `login` (7), `jwt-token › consume/revokeAll` (7), `refresh` (5), `create-user` (5)
 
-## Giai đoạn 1b – Catalog 🟡
+## Giai đoạn 1b – Catalog ✅
 
 Mentor đã dựng: migration `init_catalog` (extension `ltree`, bảng `categories` + index GiST, `products.specs` jsonb + index GIN, `price_tiers`, `company_prices`), mã lỗi `BELOW_MIN_ORDER_QTY` / `PRICE_NOT_AVAILABLE` → 422.
 
-| Bài | Concept                                    | File cần sửa                            | Lệnh kiểm tra       | Trạng thái |
-| --- | ------------------------------------------ | --------------------------------------- | ------------------- | ---------- |
-| 6   | Domain thuần: giá theo bậc + giá hợp đồng  | `src/modules/catalog/domain/pricing.ts` | `pnpm test pricing` | ✅         |
-| 7   | Cây danh mục với ltree (`<@`, `$queryRaw`) | (sẽ giao)                               |                     | ⬜         |
-| 8   | Faceted search trên specs jsonb + GIN      | (sẽ giao)                               |                     | ⬜         |
-| 9   | Cache Redis + invalidation                 | (sẽ giao)                               |                     | ⬜         |
+| Bài | Concept                                          | File cần sửa                                                                                      | Lệnh kiểm tra                       | Trạng thái |
+| --- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------- | ----------------------------------- | ---------- |
+| 6   | Domain thuần: giá theo bậc + giá hợp đồng        | `src/modules/catalog/domain/pricing.ts`                                                           | `pnpm test pricing`                 | ✅         |
+| 7   | Cây danh mục với ltree (`<@`, `@>`, `$queryRaw`) | `src/modules/catalog/infrastructure/prisma-category.repository.ts`                                | `pnpm test category` (cần DB chạy)  | ✅         |
+| 8   | Faceted search trên specs jsonb + GIN            | `src/modules/catalog/infrastructure/prisma-product.repository.ts`                                 | `pnpm test prisma-product` (cần DB) | ✅         |
+| 9   | Cache-aside Redis + version-key invalidation     | `src/modules/catalog/infrastructure/redis-catalog-cache.ts`, `application/ports/catalog-cache.ts` | `pnpm test catalog`                 | ✅         |
 
-Còn lại: seed ~5.000 SKU MRO.
+Bài 8–9 do mentor viết đáp án trực tiếp (người học yêu cầu "làm hết"). Đọc để hiểu, kèm phần còn lại của module:
+
+- Use case: `application/use-cases/catalog-use-cases.ts` (GetProduct, SearchProducts, QuoteProduct, GetCategoryTree) + spec.
+- HTTP (chỉ đọc, mọi role đã đăng nhập): `GET /categories/:slug` · `GET /products?category=&q=&spec=key:value&page=&pageSize=` · `GET /products/:id` · `GET /products/:id/quote?qty=`.
+- Ghi catalog chỉ qua seed, không mở cho admin công ty (tránh một tenant sửa dữ liệu mọi tenant thấy).
+- Seed: `pnpm db:seed` (trong `apps/api`) → 17 danh mục (11 lá), 5.000 SKU, 15.000 bậc giá, 40 hợp đồng/công ty; idempotent; cuối cùng `INCR catalog:version`.
+
+### Trạng thái lúc xong 1b (2026-11-11)
+
+80/80 test xanh (gồm integration trên Postgres thật), typecheck sạch, E2E các endpoint catalog trong `requests.http` đúng kỳ vọng.
 
 ## Ghi chú kỹ thuật / bẫy đã gặp
 
 - Prisma ghim **6.19.x** (`prisma-client-js`); Prisma 7 đổi cấu hình.
 - NestJS ghim **11.x** (npm `latest` đã là 12) · TypeScript ghim **5.9** (npm `latest` đã là 7) · ioredis ghim **5.x** (npm `latest` đã là 6).
 - pnpm ≥ 10.26: dùng `allowBuilds` trong `pnpm-workspace.yaml` (thay `onlyBuiltDependencies`, bị bỏ ở pnpm 11).
+- Test Bài 7–8 chạy trên Postgres thật. DB tắt → lỗi "Can't reach database server" → `docker compose -f infra/docker-compose.yml up -d`.
+- Query string luôn là chuỗi còn jsonb phân biệt `"12"` và `12` → filter số thử cả hai dạng (`OR`), vẫn dùng được GIN.
+- `$queryRaw` bỏ qua Prisma client → `@default(uuid())` không chạy, phải `gen_random_uuid()`; Decimal/bigint trả về không phải `number` → ép `::int`/`::float8`.
 - Postgres image pg17 (pg18 đổi đường dẫn volume).
 - File phải UTF-8 **không BOM**; `.gitattributes` ép LF (quan trọng cho `.husky/*`).
 - `.env` của API nằm ở `apps/api/.env` (gitignored), mẫu: `.env.example`.

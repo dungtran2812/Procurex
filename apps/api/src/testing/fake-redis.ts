@@ -1,6 +1,6 @@
 /**
  * FakeRedis: hiện thực in-memory một TẬP CON lệnh của ioredis đủ cho JwtTokenService.
- * Hỗ trợ: get, set (kèm 'EX', ttl), del, exists, sadd, srem, smembers, expire, multi().exec().
+ * Hỗ trợ: get, set (kèm 'EX', ttl), del, exists, incr, sadd, srem, smembers, expire, multi().exec().
  * TTL được ghi lại nhưng không tự hết hạn (test không cần chờ thời gian thực).
  * Nếu bạn dùng lệnh khác → test sẽ báo "is not a function": hãy dùng các lệnh trên.
  */
@@ -95,6 +95,11 @@ export class FakeRedis {
   }
   async exists(...keys: string[]): Promise<number> {
     return keys.flat().filter((k) => this.store.has(k)).length;
+  }
+  async incr(key: string): Promise<number> {
+    const next = Number((await this.get(key)) ?? '0') + 1;
+    this.store.set(key, String(next));
+    return next;
   }
   async sadd(key: string, ...members: string[]): Promise<number> {
     return this.saddSync(key, members);

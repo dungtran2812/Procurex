@@ -104,3 +104,30 @@ Content-Type: application/json
   "adminPassword": "Secret123!",
   "adminFullName": "X"
 }
+
+### ===== Giai đoạn 1b – Catalog (cần `pnpm db:seed` và đã chạy request "login" ở trên) =====
+
+### 11. Cây danh mục: breadcrumb + toàn bộ con cháu (ltree)
+GET {{baseUrl}}/categories/dung-cu-cam-tay
+Authorization: Bearer {{login.response.body.tokens.accessToken}}
+
+### 12. Faceted search: danh mục (gồm con) + lọc thông số + facets
+# @name search
+GET {{baseUrl}}/products?category=dung-cu&spec=material:CrV&spec=size_mm:12&pageSize=5
+Authorization: Bearer {{login.response.body.tokens.accessToken}}
+
+### 13. Tìm theo tên/SKU
+GET {{baseUrl}}/products?q=SKF 6204&pageSize=5
+Authorization: Bearer {{login.response.body.tokens.accessToken}}
+
+### 14. Chi tiết sản phẩm (kèm bậc giá) – lần 2 đọc từ cache Redis
+GET {{baseUrl}}/products/{{search.response.body.items.0.id}}
+Authorization: Bearer {{login.response.body.tokens.accessToken}}
+
+### 15. Báo giá theo số lượng (bậc giá hoặc giá hợp đồng của CÔNG TY BẠN)
+GET {{baseUrl}}/products/{{search.response.body.items.0.id}}/quote?qty=10
+Authorization: Bearer {{login.response.body.tokens.accessToken}}
+
+### 16. spec sai định dạng → 400
+GET {{baseUrl}}/products?spec=khongcohaicham
+Authorization: Bearer {{login.response.body.tokens.accessToken}}

@@ -11,6 +11,8 @@ const STATUS_BY_CODE: Record<DomainErrorCode, number> = {
   USER_NOT_FOUND: HttpStatus.NOT_FOUND,
   BELOW_MIN_ORDER_QTY: HttpStatus.UNPROCESSABLE_ENTITY,
   PRICE_NOT_AVAILABLE: HttpStatus.UNPROCESSABLE_ENTITY,
+  PRODUCT_NOT_FOUND: HttpStatus.NOT_FOUND,
+  CATEGORY_NOT_FOUND: HttpStatus.NOT_FOUND,
 };
 
 @Catch(DomainError)
